@@ -1,5 +1,5 @@
 // サーバーのURL（だいきのサーバーに直結！）
-const API_URL = "https://reversi-server.vercel.app/api";
+const API_URL = "https://reversi-server.vercel.app/api/";
 
 let board = Array(8).fill().map(() => Array(8).fill(0));
 let curColor = 1; // 1: 黒, 2: 白
