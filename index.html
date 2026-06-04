@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player</title>
+    <title>Player (Fixed Key Test)</title>
     <style>
+        /* 100%全画面スタイル */
         html, body {
             margin: 0;
             padding: 0;
@@ -25,7 +26,7 @@
     <iframe id="player" allowfullscreen></iframe>
 
     <script>
-        async function startPlayer() {
+        function startPlayer() {
             // 1. URLの末尾（?v=動画ID）から動画IDを自動取得
             const urlParams = new URLSearchParams(window.location.search);
             const videoId = urlParams.get('v');
@@ -35,28 +36,17 @@
                 return;
             }
 
-            try {
-                // 2. 自前バックエンドから最新のキーを取得
-                const res = await fetch('/api/get_key');
-                if (!res.ok) throw new Error('キーの取得に失敗しました');
-                
-                const data = await res.json();
-                let eduKey = data.key;
+            // 💡 指定された固定キー（末尾の==あり）
+            const fixedKey = "AXH1ezmwC439ouf-EPiReqOjWBqBAFTQdQ-F77V0yrSDWtxzEByWRDMHIOx29LwTbTURy8mD3Py8xKBg5F90wh1twgpwmwGAqjFG3Zv8lnKYujLD_tw2GWHXgBgJsIaSvByhye-3Azrg5PdM29Mx8NI1CeFjH2aQ9Q==";
 
-                if (!eduKey) throw new Error('キーが空っぽです');
+            // 2. パターン1（key=）に固定キーを合体させてURLを生成
+            const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?key=${encodeURIComponent(fixedKey)}`;
 
-                // 💡 【重要】キーの末尾にある「==」を自動で2つとも削除する
-                eduKey = eduKey.replace(/==$/, '');
-
-                // 3. パターン1（key=）のURLを組み立てて100%全画面で再生
-                const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?key=${encodeURIComponent(eduKey)}`;
-                document.getElementById('player').src = targetUrl;
-
-            } catch (error) {
-                console.error("エラー:", error);
-            }
+            // 3. プレイヤーにセットして再生
+            document.getElementById('player').src = targetUrl;
         }
 
+        // ページ読み込み時に実行
         window.onload = startPlayer;
     </script>
 </body>
