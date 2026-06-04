@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player (Fixed Key Test)</title>
+    <title>Player (app.js Clone Test)</title>
     <style>
-        /* 100%全画面スタイル */
+        /* 100%全画面表示スタイル */
         html, body {
             margin: 0;
             padding: 0;
@@ -23,11 +23,11 @@
 </head>
 <body>
 
-    <iframe id="player" allowfullscreen></iframe>
+    <iframe id="player" allowfullscreen allow="autoplay"></iframe>
 
     <script>
         function startPlayer() {
-            // 1. URLの末尾（?v=動画ID）から動画IDを自動取得
+            // 1. URLの末尾（?v=動画ID）から動画IDを取得
             const urlParams = new URLSearchParams(window.location.search);
             const videoId = urlParams.get('v');
 
@@ -36,17 +36,28 @@
                 return;
             }
 
-            // 💡 指定された固定キー（末尾の==あり）
+            // 💡 あなたが指定した最新の固定キー（末尾の == もそのまま維持）
             const fixedKey = "AXH1ezmwC439ouf-EPiReqOjWBqBAFTQdQ-F77V0yrSDWtxzEByWRDMHIOx29LwTbTURy8mD3Py8xKBg5F90wh1twgpwmwGAqjFG3Zv8lnKYujLD_tw2GWHXgBgJsIaSvByhye-3Azrg5PdM29Mx8NI1CeFjH2aQ9Q==";
 
-            // 2. パターン1（key=）に固定キーを合体させてURLを生成
-            const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?key=${encodeURIComponent(fixedKey)}`;
+            // 2. 【app.jsから完全コピー】内部パラメータの構築
+            const config = { enc: fixedKey, hideTitle: true };
+            const params = new URLSearchParams({
+                autoplay: 1,
+                origin: window.location.origin,
+                embed_config: JSON.stringify(config), // JSONにしてから埋め込む
+                rel: 0,
+                modestbranding: 1,
+                enablejsapi: 1,
+                v: videoId
+            });
 
-            // 3. プレイヤーにセットして再生
+            // 3. youtubeeducation.com への最終URLを生成
+            const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?${params.toString()}`;
+
+            // 4. プレイヤーのiframeに流し込んで再生
             document.getElementById('player').src = targetUrl;
         }
 
-        // ページ読み込み時に実行
         window.onload = startPlayer;
     </script>
 </body>
