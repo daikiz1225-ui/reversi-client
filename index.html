@@ -2,57 +2,17 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>自動更新版 大画面 YouTube Education プレイヤー</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player</title>
     <style>
+        /* 画面に無駄な余白やスクロールバーを一切出さない、100%全画面スタイル */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             background-color: #000;
-            font-family: sans-serif;
             overflow: hidden;
-        }
-        #control-panel {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px;
-            border-radius: 8px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        input {
-            width: 300px;
-            padding: 8px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        button {
-            padding: 8px 16px;
-            background-color: #ff0000;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:disabled {
-            background-color: #555;
-            color: #aaa;
-            cursor: not-shadow;
-        }
-        /* キーの取得状態を表示するランプ */
-        #status-lamp {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background-color: #ffcc00; /* 最初は準備中（黄） */
         }
         iframe {
             width: 100%;
@@ -63,83 +23,40 @@
 </head>
 <body>
 
-    <div id="control-panel">
-        <div id="status-lamp" title="キー取得中..."></div>
-        <input type="text" id="video-input" placeholder="キー取得中..." disabled>
-        <button id="play-btn" onclick="loadVideo()" disabled>再生</button>
-    </div>
-
-    <iframe id="edu-player" allowfullscreen></iframe>
+    <iframe id="player" allowfullscreen></iframe>
 
     <script>
-        // ここに自動で取得したキーが保存されます
-        let eduKey = ""; 
+        async function startPlayer() {
+            // 1. 現在のURLの末尾（?v=動画ID）から動画IDを自動で抜き取る
+            const urlParams = new URLSearchParams(window.location.search);
+            const videoId = urlParams.get('v');
 
-        // 💡 ページが開かれたら、自動でKahoot!のAPIからキーを取ってくる関数
-        async function fetchLatestKey() {
-            const lamp = document.getElementById('status-lamp');
-            const inputField = document.getElementById('video-input');
-            const playBtn = document.getElementById('play-btn');
+            // もし動画IDがURLに指定されていなければ処理を中断
+            if (!videoId) {
+                console.error("URLに ?v=動画ID を指定してください。");
+                return;
+            }
 
             try {
-                // APIにアクセスしてデータを取得
-                const response = await fetch('https://apis.kahoot.it/media-api/youtube/key');
-                if (!response.ok) throw new Error('ネットワークエラー');
+                // 2. さっき作った自前のバックエンドAPI（/api/get_key）を叩いてキーをもらう
+                // ※HTMLとAPIを同じVercel等にデプロイする想定なので、相対パスで指定しています
+                const res = await fetch('/api/get_key');
+                if (!res.ok) throw new Error('APIからキーを取得できませんでした');
                 
-                const data = await response.json();
-                
-                // 取得したキーを代入
-                eduKey = data.key; 
-                
-                // キーが取れたら入力できるようにロックを解除
-                lamp.style.backgroundColor = "#00ff00"; // 成功（緑）
-                lamp.title = "最新キー取得完了！";
-                inputField.placeholder = "YouTubeの動画ID または URL を入力";
-                inputField.disabled = false;
-                playBtn.disabled = false;
-                
-                console.log("最新キーの取得に成功しました");
+                const data = await res.json();
+                const eduKey = data.key;
+
+                // 3. youtubeeducation.comのURLを組み立てて大画面で再生
+                const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?key=${encodeURIComponent(eduKey)}`;
+                document.getElementById('player').src = targetUrl;
+
             } catch (error) {
-                console.error("キーの取得に失敗しました:", error);
-                lamp.style.backgroundColor = "#ff0000"; // 失敗（赤）
-                lamp.title = "キーの取得に失敗しました";
-                inputField.placeholder = "キーの自動取得に失敗しました";
+                console.error("エラーが発生しました:", error);
             }
         }
 
-        // 動画を再生する関数
-        function loadVideo() {
-            const inputVal = document.getElementById('video-input').value.trim();
-            let videoId = inputVal;
-
-            if (!inputVal || !eduKey) return;
-
-            // URLから動画IDを抽出
-            if (inputVal.includes('youtube.com') || inputVal.includes('youtu.be')) {
-                const urlObj = new URL(inputVal);
-                if (inputVal.includes('youtu.be')) {
-                    videoId = urlObj.pathname.substring(1);
-                } else if (inputVal.includes('embed/')) {
-                    videoId = urlObj.pathname.split('embed/')[1];
-                } else {
-                    videoId = urlObj.searchParams.get('v');
-                }
-            }
-
-            // 自動取得した最新のキーを使ってURLを生成
-            const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?key=${encodeURIComponent(eduKey)}`;
-
-            document.getElementById('edu-player').src = targetUrl;
-            
-            // コントロールパネルの透過処理
-            const panel = document.getElementById('control-panel');
-            panel.style.opacity = "0.1";
-            panel.onmouseenter = () => panel.style.opacity = "1";
-            panel.onmouseleave = () => panel.style.opacity = "0.1";
-        }
-
-        // 画面が開いた瞬間に実行
-        window.onload = fetchLatestKey;
+        // ページが読み込まれたら即実行
+        window.onload = startPlayer;
     </script>
 </body>
 </html>
