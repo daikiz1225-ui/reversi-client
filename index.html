@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player</title>
+    <title>Player (Debug Mode)</title>
     <style>
-        /* 画面に無駄な余白やスクロールバーを一切出さない、100%全画面スタイル */
         html, body {
             margin: 0;
             padding: 0;
@@ -13,49 +12,101 @@
             height: 100%;
             background-color: #000;
             overflow: hidden;
+            font-family: monospace;
         }
         iframe {
             width: 100%;
             height: 100%;
             border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        /* 💡 キー確認用の表示エリア（動画の上に重ねる） */
+        #debug-log {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.85);
+            color: #00ff00; /* ハッカーっぽい緑文字 */
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #00ff00;
+            max-width: 80%;
+            word-break: break-all;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: opacity 1s ease; /* 消えるときのアニメーション */
+        }
+        .status-ok {
+            font-weight: bold;
+            color: #00ff00;
+            margin-bottom: 5px;
+        }
+        .key-text {
+            color: #ccc;
+            font-size: 11px;
         }
     </style>
 </head>
 <body>
 
+    <div id="debug-log">キーを取得中...</div>
+
     <iframe id="player" allowfullscreen></iframe>
 
     <script>
         async function startPlayer() {
-            // 1. 現在のURLの末尾（?v=動画ID）から動画IDを自動で抜き取る
+            const logArea = document.getElementById('debug-log');
+            
+            // 1. URLから動画IDを自動で抜き取る
             const urlParams = new URLSearchParams(window.location.search);
             const videoId = urlParams.get('v');
 
-            // もし動画IDがURLに指定されていなければ処理を中断
             if (!videoId) {
-                console.error("URLに ?v=動画ID を指定してください。");
+                logArea.style.color = '#ff0000';
+                logArea.style.borderColor = '#ff0000';
+                logArea.innerHTML = "【エラー】URLの末尾に ?v=動画ID を付けてアクセスしてください。";
                 return;
             }
 
             try {
-                // 2. さっき作った自前のバックエンドAPI（/api/get_key）を叩いてキーをもらう
-                // ※HTMLとAPIを同じVercel等にデプロイする想定なので、相対パスで指定しています
+                // 2. 自前バックエンドAPIからキーを取得
                 const res = await fetch('/api/get_key');
-                if (!res.ok) throw new Error('APIからキーを取得できませんでした');
+                if (!res.ok) throw new Error('APIからのレスポンスが異常です');
                 
                 const data = await res.json();
                 const eduKey = data.key;
 
-                // 3. youtubeeducation.comのURLを組み立てて大画面で再生
+                if (!eduKey) throw new Error('データ内にキーが見つかりませんでした');
+
+                // 💡 【確認用】画面の左上に取得したキーを表示する
+                logArea.innerHTML = `
+                    <div class="status-ok">✅ キー取得成功！動画を再生します。</div>
+                    <div class="key-text">取得したKey: ${eduKey}</div>
+                `;
+
+                // 3. youtubeeducation.comのURLを組み立てて再生
                 const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?key=${encodeURIComponent(eduKey)}`;
                 document.getElementById('player').src = targetUrl;
 
+                // 💡 5秒後に確認表示をフワッと消す
+                setTimeout(() => {
+                    logArea.style.opacity = "0";
+                    // アニメーションが終わったら完全に非表示にしてクリックの邪魔にならないようにする
+                    setTimeout(() => logArea.style.display = "none", 1000);
+                }, 5000);
+
             } catch (error) {
-                console.error("エラーが発生しました:", error);
+                // エラーが起きたら赤文字で固定表示
+                logArea.style.color = '#ff0000';
+                logArea.style.borderColor = '#ff0000';
+                logArea.innerHTML = `【エラー】キーの取得に失敗しました:<br>${error.message}`;
+                console.error(error);
             }
         }
 
-        // ページが読み込まれたら即実行
         window.onload = startPlayer;
     </script>
 </body>
