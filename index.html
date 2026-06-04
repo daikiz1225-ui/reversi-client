@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Player (app.js Clone Test)</title>
+    <title>Player</title>
     <style>
         /* 100%全画面表示スタイル */
         html, body {
@@ -26,7 +26,7 @@
     <iframe id="player" allowfullscreen allow="autoplay"></iframe>
 
     <script>
-        function startPlayer() {
+        async function startPlayer() {
             // 1. URLの末尾（?v=動画ID）から動画IDを取得
             const urlParams = new URLSearchParams(window.location.search);
             const videoId = urlParams.get('v');
@@ -36,28 +36,38 @@
                 return;
             }
 
-            // 💡 あなたが指定した最新の固定キー（末尾の == もそのまま維持）
-            const fixedKey = "AXH1ezmwC439ouf-EPiReqOjWBqBAFTQdQ-F77V0yrSDWtxzEByWRDMHIOx29LwTbTURy8mD3Py8xKBg5F90wh1twgpwmwGAqjFG3Zv8lnKYujLD_tw2GWHXgBgJsIaSvByhye-3Azrg5PdM29Mx8NI1CeFjH2aQ9Q==";
+            try {
+                // 2. 自前バックエンドAPIから最新の教育用キーを動的に取得（フロントからは隠蔽）
+                const res = await fetch('/api/get_key');
+                if (!res.ok) throw new Error('キーの取得に失敗しました');
+                
+                const data = await res.json();
+                const latestKey = data.key;
 
-            // 2. 【app.jsから完全コピー】内部パラメータの構築
-            const config = { enc: fixedKey, hideTitle: true };
-            const params = new URLSearchParams({
-                autoplay: 1,
-                origin: window.location.origin,
-                embed_config: JSON.stringify(config), // JSONにしてから埋め込む
-                rel: 0,
-                modestbranding: 1,
-                enablejsapi: 1,
-                v: videoId
-            });
+                if (!latestKey) throw new Error('取得したキーが空です');
 
-            // 3. youtubeeducation.com への最終URLを生成
-            const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?${params.toString()}`;
+                // 3. 【app.js仕様】最新キーを使用して内部パラメータを構築
+                const config = { enc: latestKey, hideTitle: true };
+                const params = new URLSearchParams({
+                    autoplay: 1,
+                    origin: window.location.origin,
+                    embed_config: JSON.stringify(config), // JSONを文字列化して埋め込み
+                    rel: 0,
+                    modestbranding: 1,
+                    enablejsapi: 1,
+                    v: videoId
+                });
 
-            // 4. プレイヤーのiframeに流し込んで再生
-            document.getElementById('player').src = targetUrl;
+                // 4. youtubeeducation.com への最終URLを生成してセット
+                const targetUrl = `https://www.youtubeeducation.com/embed/${videoId}?${params.toString()}`;
+                document.getElementById('player').src = targetUrl;
+
+            } catch (error) {
+                console.error("プレイヤー起動エラー:", error);
+            }
         }
 
+        // ページ読み込み時に即座に実行
         window.onload = startPlayer;
     </script>
 </body>
